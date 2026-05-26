@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FitTrack - Personal Fitness Dashboard</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- jsPDF & AutoTable -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            heading: ['"Bebas Neue"', 'sans-serif'],
+            body: ['Poppins', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              green: '#00C853',
+              orange: '#FF6D00',
+              navy: '#0f172a',
+              slate: '#1e293b'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+    h1, h2, h3, h4, h5, h6, .font-heading {
+      font-family: 'Bebas Neue', sans-serif;
+      letter-spacing: 1px;
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    .dark .glass-card {
+      background: rgba(30, 41, 59, 0.95);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .input-field {
+      width: 100%;
+      padding: 0.5rem;
+      border-radius: 0.375rem;
+      background-color: #f9fafb;
+      border: 1px solid #d1d5db;
+      transition: all 0.2s;
+    }
+    .dark .input-field {
+      background-color: #374151;
+      border-color: #4b5563;
+      color: #f3f4f6;
+    }
+    .input-field:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px #00C853;
+      border-color: transparent;
+    }
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .dark ::-webkit-scrollbar-thumb { background: #475569; }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800 dark:bg-brand-navy dark:text-gray-100 min-h-screen flex flex-col">
+
+  <!-- Navbar -->
+  <nav class="glass-card sticky top-0 z-50 py-4 px-6 sm:px-8 flex justify-between items-center border-b border-gray-200 dark:border-gray-800">
+    <div class="flex items-center gap-3">
+      <div class="bg-brand-green text-white p-2 rounded-lg leading-none shadow-lg shadow-green-500/30">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+      </div>
+      <h1 class="text-3xl font-heading text-brand-navy dark:text-white m-0 tracking-wider">FIT<span class="text-brand-green">TRACK</span></h1>
+    </div>
+    <div class="flex items-center gap-4">
+      <button id="downloadPdfBtn" class="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 dark:bg-brand-slate dark:hover:bg-gray-700 px-4 py-2 rounded-lg font-bold transition-colors shadow-sm">
+        📄 <span class="hidden sm:inline">Summary PDF</span>
+      </button>
+      <button id="darkModeBtn" class="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-brand-slate dark:hover:bg-gray-700 transition-colors text-xl shadow-sm">
+        <span id="darkModeIcon">☀️</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Rest Day Banner -->
+  <div id="restDayBanner" class="hidden bg-brand-orange text-white text-center py-3 px-4 font-bold animate-pulse shadow-md"></div>
+  
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 mb-12 flex-1 w-full">
+    
+    <!-- Quote of the day -->
+    <div id="quoteBanner" class="text-center italic text-gray-600 dark:text-gray-400 mb-8 max-w-2xl mx-auto text-lg"></div>
+
+    <!-- 4 Summary Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-10">
+      <div class="glass-card p-5 rounded-2xl text-center border-b-4 border-brand-green transform hover:-translate-y-1 transition-transform">
+        <div class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wide">Workouts Logged</div>
+        <div id="totalWorkouts" class="text-4xl sm:text-5xl font-heading text-gray-800 dark:text-white mt-2">0</div>
+      </div>
+      <div class="glass-card p-5 rounded-2xl text-center border-b-4 border-brand-orange transform hover:-translate-y-1 transition-transform">
+        <div class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wide">Calories Burned</div>
+        <div id="totalCalories" class="text-4xl sm:text-5xl font-heading text-gray-800 dark:text-white mt-2">0</div>
+      </div>
+      <div class="glass-card p-5 rounded-2xl text-center border-b-4 border-brand-green transform hover:-translate-y-1 transition-transform">
+        <div class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wide">Current Streak</div>
+        <div class="text-4xl sm:text-5xl font-heading text-gray-800 dark:text-white mt-2"><span id="currentStreak">0</span><span class="text-xl sm:text-2xl text-gray-400 ml-1">Days</span></div>
+      </div>
+      <div class="glass-card p-5 rounded-2xl text-center border-b-4 border-brand-orange transform hover:-translate-y-1 transition-transform">
+        <div class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wide">Goals Completed</div>
+        <div id="goalsCompleted" class="text-4xl sm:text-5xl font-heading text-gray-800 dark:text-white mt-2">0 / 3</div>
+      </div>
+    </div>
+
+    <!-- Main Header -->
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-3xl sm:text-4xl font-heading text-brand-orange">Workout Diary</h2>
+      <button id="toggleWorkoutFormBtn" class="bg-brand-green text-white px-5 py-2.5 rounded-lg font-bold hover:bg-green-600 transition-colors shadow-lg shadow-green-500/30">
+        + Add Workout
+      </button>
+    </div>
+
+    <!-- Add Workout Form Container -->
+    <div id="workoutFormContainer" class="hidden glass-card p-6 rounded-2xl mb-10 border-l-4 border-brand-green overflow-hidden transition-all">
+      <form id="workoutForm" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        
+        <div class="space-y-1">
+          <label class="text-sm font-bold text-gray-700 dark:text-gray-300">Workout Type</label>
+          <select id="workoutType" class="input-field" required>
+            <option value="Running">🏃 Running</option>
+            <option value="Cycling">🚴 Cycling</option>
+            <option value="Swimming">🏊 Swimming</option>
+            <option value="Weightlifting">🏋️ Weightlifting</option>
+            <option value="Yoga">🧘 Yoga</option>
+            <option value="Custom">⚡ Custom</option>
+          </select>
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-sm font-bold text-gray-700 dark:text-gray-300">Intensity Level</label>
+          <select id="intensity" class="input-field" required>
+            <option value="Low">Low</option>
+            <option value="Medium" selected>Medium</option>
+            <option value="High">High</option>
+          </select>
+        </div>
+
+        <!-- Custom Fields (Hidden initially) -->
+        <div id="customWorkoutFields" class="hidden col-span-1 md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-5 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div class="space-y-1">
+            <label class="text-sm font-bold text-gray-700 dark:text-gray-300">Custom Category Name</label>
+            <input type="text" id="customTypeName" class="input-field" placeholder="e.g. Rock Climbing">
+          </div>
+          <div class="space-y-1">
+            <label class="text-sm font-bold text-gray-700 dark:text-gray-300">Calories per minute</label>
+            <input type="number" id="customCalorieRate" class="input-field" value="5" min="1">
+          </div>
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-sm font-bold text-gray-700 dark:text-gray-300">Duration (minutes)</label>
+          <input type="number" id="duration" class="input-field" required min="1" placeholder="e.g. 45">
+        </div>
+        
+        <div class="space-y-1">
+          <label class="text-sm font-bold text-gray-700 dark:text-gray-300">Date</label>
+          <input type="date" id="workoutDate" class="input-field" required>
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-sm font-bold text-gray-700 dark:text-gray-300">Calories Burned (Auto/Manual)</label>
+          <input type="number" id="calories" class="input-field text-brand-orange font-bold text-lg" required min="0">
+        </div>
+
+        <div class="space-y-1 md:col-span-2">
+          <label class="text-sm font-bold text-gray-700 dark:text-gray-300">Notes (optional)</label>
+          <textarea id="notes" class="input-field" rows="2" placeholder="How did it feel?"></textarea>
+        </div>
+
+        <div class="md:col-span-2 flex justify-end gap-3 mt-2">
+          <button type="button" id="cancelFormBtn" class="px-5 py-2.5 rounded-lg font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Cancel</button>
+          <button type="submit" class="bg-brand-green text-white px-8 py-2.5 rounded-lg font-bold hover:bg-green-600 transition-colors shadow-lg shadow-green-500/30">Save Workout</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Two Column Layout (Charts & Goals vs List & BMI) -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      
+      <!-- Left Column: Charts and Goals -->
+      <div class="lg:col-span-2 space-y-8">
+        
+        <div class="glass-card p-6 rounded-2xl relative">
+          <h3 class="text-2xl font-heading mb-6 flex items-center gap-2">📊 Weekly Activity</h3>
+          <canvas id="workoutsChart" height="120"></canvas>
+        </div>
+        
+        <div class="glass-card p-6 rounded-2xl relative">
+          <h3 class="text-2xl font-heading mb-6 flex items-center gap-2">🔥 Calorie Burn</h3>
+          <canvas id="caloriesChart" height="120"></canvas>
+        </div>
+
+        <div class="glass-card p-6 rounded-2xl">
+          <div class="flex justify-between items-center mb-6">
+            <h3 class="text-2xl font-heading flex items-center gap-2">🎯 Weekly Goals</h3>
+            <button id="editGoalsBtn" class="text-sm font-bold text-gray-500 hover:text-brand-orange transition-colors">Edit Goals</button>
+          </div>
+          
+          <div id="goalsFormContainer" class="hidden mb-6 p-5 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+            <form id="goalsForm" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label class="text-xs font-bold block mb-1">Workouts / Week</label>
+                <input type="number" id="goalWorkouts" class="input-field" required min="1">
+              </div>
+              <div>
+                <label class="text-xs font-bold block mb-1">Minutes / Week</label>
+                <input type="number" id="goalMinutes" class="input-field" required min="1">
+              </div>
+              <div>
+                <label class="text-xs font-bold block mb-1">Calories / Week</label>
+                <input type="number" id="goalCalories" class="input-field" required min="1">
+              </div>
+              <div class="sm:col-span-3">
+                <button type="submit" class="w-full bg-brand-navy dark:bg-gray-200 text-white dark:text-gray-800 font-bold py-2 rounded-lg transition-colors hover:bg-gray-800 dark:hover:bg-white">Save Goals</button>
+              </div>
+            </form>
+          </div>
+          
+          <div id="goalsProgress" class="space-y-5">
+            <!-- Progress bars injected via JS -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right Column: BMI Tracker & Filter UI Prep -->
+      <div class="space-y-8">
+        
+        <div class="glass-card p-6 rounded-2xl">
+          <h3 class="text-2xl font-heading mb-6 flex items-center gap-2">⚖️ Body Measurement</h3>
+          <form id="bmiForm" class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="text-xs font-bold block mb-1 text-gray-600 dark:text-gray-400">Weight (kg)</label>
+                <input type="number" step="0.1" id="bmiWeight" class="input-field" required>
+              </div>
+              <div>
+                <label class="text-xs font-bold block mb-1 text-gray-600 dark:text-gray-400">Height (cm)</label>
+                <input type="number" id="bmiHeight" class="input-field" required>
+              </div>
+            </div>
+            <div>
+              <label class="text-xs font-bold block mb-1 text-gray-600 dark:text-gray-400">Date</label>
+              <input type="date" id="bmiDate" class="input-field" required>
+            </div>
+            <button type="submit" class="w-full border-2 border-brand-green text-brand-green font-bold py-2 rounded-lg transition-colors hover:bg-brand-green hover:text-white">Track Measurement</button>
+          </form>
+          
+          <div id="bmiResult" class="mt-6 text-center text-lg bg-gray-50 dark:bg-gray-800 py-3 rounded-lg border border-gray-100 dark:border-gray-700 shadow-inner">
+            <span class="text-gray-500 text-sm">Enter measurements to see BMI</span>
+          </div>
+          
+          <div class="mt-6">
+            <canvas id="bmiChart" height="150"></canvas>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Full Width: History List -->
+    <div class="mt-10 glass-card p-6 sm:p-8 rounded-2xl">
+      <h3 class="text-2xl font-heading mb-6">📜 Workout History</h3>
+      
+      <!-- Filters -->
+      <div class="flex flex-wrap gap-4 mb-8 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+        <div class="flex-1 min-w-[200px]">
+          <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Search</label>
+          <input type="text" id="searchInput" placeholder="Search notes or types..." class="input-field">
+        </div>
+        <div class="w-full sm:w-auto">
+          <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Type</label>
+          <select id="filterType" class="input-field min-w-[140px]">
+            <option value="">All Types</option>
+            <option value="Running">Running</option>
+            <option value="Cycling">Cycling</option>
+            <option value="Swimming">Swimming</option>
+            <option value="Weightlifting">Weightlifting</option>
+            <option value="Yoga">Yoga</option>
+            <option value="Custom">Custom</option>
+          </select>
+        </div>
+        <div class="w-full sm:w-auto">
+          <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Intensity</label>
+          <select id="filterIntensity" class="input-field min-w-[140px]">
+            <option value="">All Intensities</option>
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+          </select>
+        </div>
+        <div class="w-full sm:w-auto">
+          <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Date</label>
+          <input type="date" id="filterDate" class="input-field">
+        </div>
+        <div class="w-full sm:w-auto flex items-end">
+          <button id="resetFilters" class="w-full px-5 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg font-bold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">Reset</button>
+        </div>
+      </div>
+      
+      <!-- List -->
+      <div id="workoutList" class="space-y-4">
+        <!-- Cards injected via JS -->
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    // --- STATE MANAGEMENT ---
+    let workouts = JSON.parse(localStorage.getItem('workouts')) || [];
+    let measurements = JSON.parse(localStorage.getItem('measurements')) || [];
+    let settings = JSON.parse(localStorage.getItem('settings')) || {
+        weeklyWorkoutGoal: 3,
+        weeklyMinutesGoal: 150,
+        weeklyCaloriesGoal: 2000,
+        darkMode: true
+    };
+    let editingWorkoutId = null;
+    let isFormVisible = false;
+
+    // Chart Instances
+    let workoutsChartInstance = null;
+    let caloriesChartInstance = null;
+    let bmiChartInstance = null;
+
+    // Constants
+    const CALORIE_RATES = {
+        'Running': 10,
+        'Cycling': 8,
+        'Swimming': 9,
+        'Weightlifting': 6,
+        'Yoga': 4,
+        'Custom': 5
+    };
+    const INTENSITY_MULT = {
+        'Low': 0.8,
+        'Medium': 1.0,
+        'High': 1.2
+    };
+    const QUOTES = [
+        "The only bad workout is the one that didn't happen.",
+        "Wake up with determination. Go to bed with satisfaction.",
+        "It never gets easier, you just get stronger.",
+        "A one-hour workout is 4% of your day. No excuses.",
+        "Don't stop when you're tired. Stop when you're done.",
+        "Push harder than yesterday if you want a different tomorrow."
+    ];
+
+    // --- INITIALIZATION ---
+    document.addEventListener('DOMContentLoaded', () => {
+        initDarkMode();
+        initQuotes();
+        
+        document.getElementById('bmiDate').value = new Date().toISOString().split('T')[0];
+        
+        updateAll();
+        setupEventListeners();
+    });
+
+    // --- CORE LOGIC ---
+    function updateAll() {
+        updateDashboard();
+        renderCharts();
+        renderGoals();
+        renderBmiChart();
+        renderWorkoutHistory();
+        checkRestDays();
+        updateBmiDisplay();
+    }
+
+    function setupEventListeners() {
+        // Form field calculators
+        ['workoutType', 'duration', 'intensity', 'customCalorieRate'].forEach(id => {
+            document.getElementById(id).addEventListener('input', () => {
+                const type = document.getElementById('workoutType').value;
+                const customFields = document.getElementById('customWorkoutFields');
+                if (type === 'Custom') customFields.classList.remove('hidden');
+                else customFields.classList.add('hidden');
+                calculateCalories();
+            });
+        });
+
+        // Filter events
+        ['searchInput', 'filterType', 'filterIntensity', 'filterDate'].forEach(id => {
+            document.getElementById(id).addEventListener('input', renderWorkoutHistory);
+        });
+        document.getElementById('resetFilters').addEventListener('click', () => {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('filterType').value = '';
+            document.getElementById('filterIntensity').value = '';
+            document.getElementById('filterDate').value = '';
+            renderWorkoutHistory();
+        });
+
+        // Submissions
+        document.getElementById('workoutForm').addEventListener('submit', handleWorkoutSubmit);
+        document.getElementById('bmiForm').addEventListener('submit', handleBmiSubmit);
+        document.getElementById('goalsForm').addEventListener('submit', handleGoalsSubmit);
+        
+        // Form Toggles
+        document.getElementById('toggleWorkoutFormBtn').addEventListener('click', toggleForm);
+        document.getElementById('cancelFormBtn').addEventListener('click', closeForm);
+        document.getElementById('editGoalsBtn').addEventListener('click', () => {
+            const form = document.getElementById('goalsFormContainer');
+            form.classList.toggle('hidden');
+            if(!form.classList.contains('hidden')) {
+                document.getElementById('goalWorkouts').value = settings.weeklyWorkoutGoal;
+                document.getElementById('goalMinutes').value = settings.weeklyMinutesGoal;
+                document.getElementById('goalCalories').value = settings.weeklyCaloriesGoal;
+            }
+        });
+
+        // PDF & Dark Mode
+        document.getElementById('downloadPdfBtn').addEventListener('click', generatePDF);
+        document.getElementById('darkModeBtn').addEventListener('click', toggleDarkMode);
+    }
+
+    // --- CALCULATION & HELPERS ---
+    function calculateCalories() {
+        const type = document.getElementById('workoutType').value;
+        const duration = parseFloat(document.getElementById('duration').value) || 0;
+        const intensity = document.getElementById('intensity').value;
+        
+        let rate = (type === 'Custom') 
+            ? (parseFloat(document.getElementById('customCalorieRate').value) || 5)
+            : (CALORIE_RATES[type] || 5);
+        
+        const mult = INTENSITY_MULT[intensity] || 1.0;
+        const total = Math.round(duration * rate * mult);
+        document.getElementById('calories').value = total;
+    }
+
+    function toggleForm() {
+        isFormVisible = !isFormVisible;
+        const form = document.getElementById('workoutFormContainer');
+        form.classList.toggle('hidden', !isFormVisible);
+        
+        if (!isFormVisible) {
+            closeForm();
+        } else {
+            if (!editingWorkoutId) {
+                document.getElementById('workoutDate').value = new Date().toISOString().split('T')[0];
+            }
+        }
+    }
+
+    function closeForm() {
+        isFormVisible = false;
+        editingWorkoutId = null;
+        document.getElementById('workoutFormContainer').classList.add('hidden');
+        document.getElementById('workoutForm').reset();
+        document.getElementById('customWorkoutFields').classList.add('hidden');
+        document.getElementById('toggleWorkoutFormBtn').innerText = '+ Add Workout';
+    }
+
+    function calculateStreak() {
+        if (workouts.length === 0) return 0;
+        const dates = [...new Set(workouts.map(w => w.date))].sort((a,b) => new Date(b) - new Date(a));
+        
+        let streak = 0;
+        let checkDate = new Date();
+        checkDate.setHours(0,0,0,0);
+        
+        let todayStr = checkDate.toISOString().split('T')[0];
+        checkDate.setDate(checkDate.getDate() - 1);
+        let yestStr = checkDate.toISOString().split('T')[0];
+        
+        let currentIterDate = new Date();
+        currentIterDate.setHours(0,0,0,0);
+
+        if (dates.includes(todayStr)) {
+            streak = 1;
+        } else if (dates.includes(yestStr)) {
+            streak = 1;
+            currentIterDate.setDate(currentIterDate.getDate() - 1); // shift back
+        } else {
+            return 0;
+        }
+        
+        while (true) {
+            currentIterDate.setDate(currentIterDate.getDate() - 1);
+            if (dates.includes(currentIterDate.toISOString().split('T')[0])) {
+                streak++;
+            } else {
+                break;
+            }
+        }
+        return streak;
+    }
+
+    function getStartOfWeek() {
+        const d = new Date();
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+        const monday = new Date(d.setDate(diff));
+        monday.setHours(0,0,0,0);
+        return monday;
+    }
+
+    function checkRestDays() {
+        const banner = document.getElementById('restDayBanner');
+        if (workouts.length === 0) {
+            banner.classList.add('hidden');
+            return;
+        }
+        const lastDateStr = [...workouts].sort((a,b) => new Date(b.date) - new Date(a.date))[0].date;
+        const lastWorkoutDate = new Date(lastDateStr);
+        lastWorkoutDate.setHours(0,0,0,0);
+        
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        
+        const diffTime = Math.abs(today - lastWorkoutDate);
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays >= 2) {
+            banner.innerHTML = `You haven't worked out in <span class="text-xl mx-1">${diffDays}</span> days. Time to move! 💪`;
+            banner.classList.remove('hidden');
+        } else {
+            banner.classList.add('hidden');
+        }
+    }
+
+    // --- FORM HANDLERS ---
+    function handleWorkoutSubmit(e) {
+        e.preventDefault();
+        
+        const id = editingWorkoutId || Date.now();
+        const type = document.getElementById('workoutType').value;
+        const customType = document.getElementById('customTypeName').value;
+        const duration = parseFloat(document.getElementById('duration').value);
+        const date = document.getElementById('workoutDate').value;
+        const intensity = document.getElementById('intensity').value;
+        const calories = parseFloat(document.getElementById('calories').value);
+        const notes = document.getElementById('notes').value;
+
+        const workout = {
+            id, type, customType, duration, date, intensity, calories, notes,
+            timestamp: editingWorkoutId ? workouts.find(w=>w.id===id).timestamp : Date.now()
+        };
+
+        if (editingWorkoutId) {
+            const index = workouts.findIndex(w => w.id === editingWorkoutId);
+            workouts[index] = workout;
+        } else {
+            workouts.push(workout);
+        }
+
+        localStorage.setItem('workouts', JSON.stringify(workouts));
+        closeForm();
+        updateAll();
+    }
+
+    function editWorkout(id) {
+        const workout = workouts.find(w => w.id === id);
+        if(!workout) return;
+        
+        editingWorkoutId = id;
+        document.getElementById('workoutType').value = workout.type;
+        
+        if(workout.type === 'Custom') {
+            document.getElementById('customWorkoutFields').classList.remove('hidden');
+            document.getElementById('customTypeName').value = workout.customType;
+            let mult = INTENSITY_MULT[workout.intensity] || 1;
+            let rate = workout.calories / workout.duration / mult;
+            document.getElementById('customCalorieRate').value = Math.round(rate) || 5;
+        } else {
+            document.getElementById('customWorkoutFields').classList.add('hidden');
+        }
+        
+        document.getElementById('duration').value = workout.duration;
+        document.getElementById('workoutDate').value = workout.date;
+        document.getElementById('intensity').value = workout.intensity;
+        document.getElementById('calories').value = workout.calories;
+        document.getElementById('notes').value = workout.notes;
+
+        if(!isFormVisible) {
+            isFormVisible = true;
+            document.getElementById('workoutFormContainer').classList.remove('hidden');
+        }
+        
+        document.getElementById('toggleWorkoutFormBtn').innerText = 'Cancel Edit';
+        document.getElementById('workoutFormContainer').scrollIntoView({behavior: 'smooth', block: 'start'});
+    }
+
+    function deleteWorkout(id) {
+        if(confirm('Are you sure you want to delete this workout?')) {
+            workouts = workouts.filter(w => w.id !== id);
+            localStorage.setItem('workouts', JSON.stringify(workouts));
+            updateAll();
+        }
+    }
+
+    function handleGoalsSubmit(e) {
+        e.preventDefault();
+        settings.weeklyWorkoutGoal = parseInt(document.getElementById('goalWorkouts').value) || 0;
+        settings.weeklyMinutesGoal = parseInt(document.getElementById('goalMinutes').value) || 0;
+        settings.weeklyCaloriesGoal = parseInt(document.getElementById('goalCalories').value) || 0;
+        localStorage.setItem('settings', JSON.stringify(settings));
+        document.getElementById('goalsFormContainer').classList.add('hidden');
+        updateDashboard();
+        renderGoals();
+    }
+
+    function handleBmiSubmit(e) {
+        e.preventDefault();
+        const weight = parseFloat(document.getElementById('bmiWeight').value);
+        const height = parseFloat(document.getElementById('bmiHeight').value);
+        const date = document.getElementById('bmiDate').value;
+        
+        const heightInM = height / 100;
+        const bmi = (weight / (heightInM * heightInM)).toFixed(1);
+        
+        let category = '';
+        if (bmi < 18.5) category = 'Underweight';
+        else if (bmi <= 24.9) category = 'Normal';
+        else if (bmi <= 29.9) category = 'Overweight';
+        else category = 'Obese';
+        
+        const entry = { id: Date.now(), weight, height, bmi, category, date };
+        
+        measurements.push(entry);
+        measurements.sort((a,b) => new Date(a.date) - new Date(b.date));
+        localStorage.setItem('measurements', JSON.stringify(measurements));
+        
+        e.target.reset();
+        document.getElementById('bmiDate').value = new Date().toISOString().split('T')[0];
+        
+        updateBmiDisplay();
+        renderBmiChart();
+    }
+
+    // --- RENDERERS ---
+    function initQuotes() {
+        const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
+        document.getElementById('quoteBanner').innerText = `"${QUOTES[dayOfYear % QUOTES.length]}"`;
+    }
+
+    function initDarkMode() {
+        const root = document.documentElement;
+        const icon = document.getElementById('darkModeIcon');
+        if (settings.darkMode) {
+            root.classList.add('dark');
+            icon.innerText = '☀️';
+        } else {
+            root.classList.remove('dark');
+            icon.innerText = '🌙';
+        }
+    }
+
+    function toggleDarkMode() {
+        settings.darkMode = !settings.darkMode;
+        localStorage.setItem('settings', JSON.stringify(settings));
+        initDarkMode();
+        renderCharts();
+        renderBmiChart();
+    }
+
+    function updateDashboard() {
+        document.getElementById('totalWorkouts').innerText = workouts.length;
+        const totalCals = workouts.reduce((sum, w) => sum + (parseFloat(w.calories)||0), 0);
+        document.getElementById('totalCalories').innerText = totalCals.toLocaleString();
+        document.getElementById('currentStreak').innerText = calculateStreak();
+        
+        const startOfWeek = getStartOfWeek();
+        const weeklyWorkouts = workouts.filter(w => new Date(w.date) >= startOfWeek);
+        
+        const count = weeklyWorkouts.length;
+        const mins = weeklyWorkouts.reduce((sum, w) => sum + (parseFloat(w.duration)||0), 0);
+        const cals = weeklyWorkouts.reduce((sum, w) => sum + (parseFloat(w.calories)||0), 0);
+        
+        let goalsCompleted = 0;
+        if (count >= settings.weeklyWorkoutGoal) goalsCompleted++;
+        if (mins >= settings.weeklyMinutesGoal) goalsCompleted++;
+        if (cals >= settings.weeklyCaloriesGoal) goalsCompleted++;
+        
+        document.getElementById('goalsCompleted').innerText = `${goalsCompleted} / 3`;
+    }
+
+    function renderGoals() {
+        const startOfWeek = getStartOfWeek();
+        const weeklyWorkouts = workouts.filter(w => new Date(w.date) >= startOfWeek);
+        
+        const count = weeklyWorkouts.length;
+        const mins = weeklyWorkouts.reduce((sum, w) => sum + (parseFloat(w.duration)||0), 0);
+        const cals = weeklyWorkouts.reduce((sum, w) => sum + (parseFloat(w.calories)||0), 0);
+
+        const goalData = [
+            { name: 'Workouts', current: count, target: settings.weeklyWorkoutGoal, unit: '' },
+            { name: 'Minutes', current: mins, target: settings.weeklyMinutesGoal, unit: 'm' },
+            { name: 'Calories', current: cals, target: settings.weeklyCaloriesGoal, unit: 'kcal' },
+        ];
+
+        const container = document.getElementById('goalsProgress');
+        container.innerHTML = '';
+
+        goalData.forEach(g => {
+            let percent = Math.min((g.current / g.target) * 100, 100) || 0;
+            let isReached = percent === 100;
+            let color = isReached ? 'bg-brand-green' : 'bg-brand-orange';
+            
+            container.innerHTML += `
+                <div>
+                    <div class="flex justify-between text-sm mb-1 text-gray-700 dark:text-gray-300">
+                        <span class="font-bold flex items-center gap-1">${g.name} ${isReached ? '✅' : ''}</span>
+                        <span>${g.current} / ${g.target} ${g.unit}</span>
+                    </div>
+                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 border border-gray-300 dark:border-gray-600 overflow-hidden">
+                        <div class="${color} h-3 rounded-full transition-all duration-1000 ease-out" style="width: ${percent}%"></div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function updateBmiDisplay() {
+        const container = document.getElementById('bmiResult');
+        if (measurements.length > 0) {
+            const last = measurements[measurements.length-1];
+            let catColor = last.bmi < 18.5 ? 'text-blue-500' : (last.bmi <= 24.9 ? 'text-brand-green' : (last.bmi <= 29.9 ? 'text-brand-orange' : 'text-red-500'));
+            container.innerHTML = `Your BMI: <span class="font-heading text-3xl mx-2">${last.bmi}</span> <span class="font-bold ${catColor}">(${last.category})</span>`;
+        } else {
+            container.innerHTML = `<span class="text-gray-500 text-sm">Enter measurements to see BMI</span>`;
+        }
+    }
+
+    function getChartTheme() {
+        const isDark = document.documentElement.classList.contains('dark');
+        return {
+            textColor: isDark ? '#9ca3af' : '#4b5563',
+            gridColor: isDark ? '#374151' : '#e5e7eb',
+            fontFam: "'Poppins', sans-serif"
+        };
+    }
+
+    function getLast7Days() {
+        const dates = [];
+        for (let i=6; i>=0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            dates.push(d.toISOString().split('T')[0]);
+        }
+        return dates;
+    }
+
+    function renderCharts() {
+        const dates = getLast7Days();
+        const workoutCounts = dates.map(date => workouts.filter(w => w.date === date).length);
+        const calorieSums = dates.map(date => workouts.filter(w => w.date === date).reduce((sum, w) => sum + (parseFloat(w.calories)||0), 0));
+
+        const theme = getChartTheme();
+        Chart.defaults.font.family = theme.fontFam;
+        Chart.defaults.color = theme.textColor;
+
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { color: theme.textColor }, grid: { color: theme.gridColor, display: false } },
+                y: { ticks: { color: theme.textColor, precision: 0 }, grid: { color: theme.gridColor, borderDash: [5, 5] }, beginAtZero: true }
+            }
+        };
+
+        if(workoutsChartInstance) workoutsChartInstance.destroy();
+        const ctx1 = document.getElementById('workoutsChart').getContext('2d');
+        workoutsChartInstance = new Chart(ctx1, {
+            type: 'bar',
+            data: {
+                labels: dates.map(d => d.slice(5).replace('-','/')),
+                datasets: [{
+                    label: 'Workouts',
+                    data: workoutCounts,
+                    backgroundColor: '#00C853',
+                    borderRadius: 6,
+                    barPercentage: 0.6
+                }]
+            },
+            options: commonOptions
+        });
+
+        if(caloriesChartInstance) caloriesChartInstance.destroy();
+        const ctx2 = document.getElementById('caloriesChart').getContext('2d');
+        caloriesChartInstance = new Chart(ctx2, {
+            type: 'line',
+            data: {
+                labels: dates.map(d => d.slice(5).replace('-','/')),
+                datasets: [{
+                    label: 'Calories',
+                    data: calorieSums,
+                    borderColor: '#FF6D00',
+                    backgroundColor: 'rgba(255, 109, 0, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 3,
+                    pointBackgroundColor: '#FF6D00',
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: commonOptions
+        });
+    }
+
+    function renderBmiChart() {
+        if(bmiChartInstance) bmiChartInstance.destroy();
+        if(measurements.length === 0) return;
+
+        const recent = measurements.slice(-10);
+        const theme = getChartTheme();
+
+        const ctx = document.getElementById('bmiChart').getContext('2d');
+        bmiChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: recent.map(m => m.date.slice(5).replace('-','/')),
+                datasets: [{
+                    label: 'Weight (kg)',
+                    data: recent.map(m => m.weight),
+                    borderColor: '#00C853',
+                    backgroundColor: 'rgba(0, 200, 83, 0.1)',
+                    tension: 0.3,
+                    fill: true,
+                    borderWidth: 2,
+                    pointBackgroundColor: '#00C853'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: theme.textColor }, grid: { display: false } },
+                    y: { 
+                        ticks: { color: theme.textColor }, 
+                        grid: { color: theme.gridColor, borderDash: [5,5] },
+                        min: Math.max(0, Math.min(...recent.map(m=>m.weight)) - 5)
+                    }
+                }
+            }
+        });
+    }
+
+    function renderWorkoutHistory() {
+        const list = document.getElementById('workoutList');
+        list.innerHTML = '';
+        
+        const search = document.getElementById('searchInput').value.toLowerCase();
+        const typeF = document.getElementById('filterType').value;
+        const intF = document.getElementById('filterIntensity').value;
+        const dateF = document.getElementById('filterDate').value;
+        
+        let filtered = workouts.filter(w => {
+            const matchSearch = (w.notes || '').toLowerCase().includes(search) || 
+                                (w.type || '').toLowerCase().includes(search) || 
+                                (w.customType || '').toLowerCase().includes(search);
+            const matchType = typeF ? w.type === typeF : true;
+            const matchInt = intF ? w.intensity === intF : true;
+            const matchDate = dateF ? w.date === dateF : true;
+            return matchSearch && matchType && matchInt && matchDate;
+        });
+        
+        filtered.sort((a,b) => new Date(b.date) - new Date(a.date) || b.timestamp - a.timestamp);
+        
+        const maxDur = Math.max(...workouts.map(w => w.duration), 0);
+        const maxCal = Math.max(...workouts.map(w => w.calories), 0);
+
+        if (filtered.length === 0) {
+            list.innerHTML = '<div class="text-center py-8 text-gray-500 italic">No workouts found. Try adjusting filters or adding a new workout.</div>';
+            return;
+        }
+
+        filtered.forEach(w => {
+            const isPbDur = w.duration == maxDur && maxDur > 0;
+            const isPbCal = w.calories == maxCal && maxCal > 0;
+            const badges = [];
+            if(isPbDur) badges.push('🏆 Longest');
+            if(isPbCal) badges.push('🔥 Max Cals');
+
+            let icon = '🏃';
+            if(w.type === 'Cycling') icon = '🚴';
+            if(w.type === 'Swimming') icon = '🏊';
+            if(w.type === 'Weightlifting') icon = '🏋️';
+            if(w.type === 'Yoga') icon = '🧘';
+            if(w.type === 'Custom') icon = '⚡';
+
+            const displayType = w.type === 'Custom' ? (w.customType || 'Custom') : w.type;
+
+            const card = document.createElement('div');
+            card.className = "p-5 bg-white dark:bg-brand-slate rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-all hover:shadow-md";
+            
+            card.innerHTML = `
+                <div class="flex items-center gap-5 w-full md:w-auto">
+                    <div class="text-3xl bg-gray-50 dark:bg-gray-800 shadow-inner p-3 rounded-full h-16 w-16 flex items-center justify-center shrink-0 border border-gray-100 dark:border-gray-700">
+                        ${icon}
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="font-bold text-xl flex flex-wrap items-center gap-2 text-brand-navy dark:text-white">
+                            ${displayType} 
+                            ${badges.map(b => `<span class="text-xs bg-brand-orange text-white px-2 py-0.5 rounded-full shadow-sm">${b}</span>`).join('')}
+                        </h4>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">
+                            ${w.date} • ${w.duration} min • ${w.intensity} Intensity
+                        </p>
+                        ${w.notes ? `<p class="text-sm mt-2 text-gray-600 dark:text-gray-300 italic bg-gray-50 dark:bg-gray-800 p-2 rounded inline-block border border-gray-100 dark:border-gray-700 w-full md:w-auto break-all">"${w.notes}"</p>` : ''}
+                    </div>
+                </div>
+                <div class="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end mt-4 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 border-gray-100 dark:border-gray-700">
+                    <div class="text-right flex flex-col justify-center">
+                        <span class="block text-3xl font-heading text-brand-green leading-none">${w.calories}</span>
+                        <span class="text-xs text-gray-500 uppercase font-bold tracking-wider">kcal</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="editWorkout(${w.id})" class="text-gray-400 hover:text-blue-500 bg-gray-50 dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-gray-700 p-2.5 rounded-lg transition-colors border border-gray-200 dark:border-gray-600" title="Edit">✏️</button>
+                        <button onclick="deleteWorkout(${w.id})" class="text-gray-400 hover:text-red-500 bg-gray-50 dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-gray-700 p-2.5 rounded-lg transition-colors border border-gray-200 dark:border-gray-600" title="Delete">🗑️</button>
+                    </div>
+                </div>
+            `;
+            list.appendChild(card);
+        });
+    }
+
+    // --- PDF GENERATION ---
+    function generatePDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(22);
+        doc.setTextColor(0, 200, 83); // Brand Green
+        doc.text("FitTrack - Workout Diary Summary", 14, 22);
+        
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(150, 150, 150);
+        doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
+        
+        doc.setFontSize(12);
+        doc.setTextColor(40, 40, 40);
+        
+        const totalCals = workouts.reduce((sum, w) => sum + (parseFloat(w.calories)||0), 0);
+        
+        doc.text(`Total Workouts Logged: ${workouts.length}`, 14, 42);
+        doc.text(`Total Calories Burned: ${totalCals.toLocaleString()} kcal`, 14, 49);
+        doc.text(`Current Streak: ${calculateStreak()} days`, 14, 56);
+
+        if (window.jspdf.plugin?.autotable || typeof doc.autoTable === 'function') {
+            const sorted = [...workouts].sort((a,b) => new Date(b.date) - new Date(a.date));
+            const body = sorted.map(w => [
+                w.date, 
+                w.type === 'Custom' ? (w.customType||'Custom') : w.type,
+                `${w.duration} min`,
+                w.intensity,
+                `${w.calories} kcal`,
+                w.notes || ''
+            ]);
+            
+            doc.autoTable({
+                startY: 65,
+                head: [['Date', 'Workout Type', 'Duration', 'Intensity', 'Calories', 'Notes']],
+                body: body,
+                theme: 'striped',
+                headStyles: { fillColor: [15, 23, 42] }, // Brand Navy
+                alternateRowStyles: { fillColor: [245, 245, 245] },
+                styles: { fontSize: 9, cellPadding: 3 }
+            });
+        } else {
+            doc.text("Workout History (Install jsPDF-AutoTable for table format):", 14, 70);
+            let y = 78;
+            workouts.slice(0, 20).forEach(w => {
+                doc.text(`${w.date} - ${w.type} (${w.duration}m) - ${w.calories} kcal`, 14, y);
+                y += 7;
+            });
+        }
+        
+        doc.save(`fittrack-summary-${new Date().toISOString().split('T')[0]}.pdf`);
+    }
+  </script>
+</body>
+</html>
